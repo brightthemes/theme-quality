@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { randomBytes } from 'crypto';
-import { root, themePackage } from '../lib/config.mjs';
+import { results, root, themePackage } from '../lib/config.mjs';
 import { zip, zipPath } from '../lib/zip.mjs';
 import { demoFile } from './pages.mjs';
 
@@ -59,7 +59,7 @@ export async function startGhost({ config, makeZip = true }) {
   const stop = () => ghost.kill();
 
   try {
-    const path = await setup(theme, config.quality.ghost);
+    const path = await setup(theme, { ...config.quality.ghost, member: config.quality.members.enabled });
     return { url, stop, path };
   } catch (error) {
     stop();
@@ -124,8 +124,46 @@ async function setup(theme, options) {
     // Ghost's default accent (pink) fails contrast with any text color
     ...(options.accentColor ? [{ key: 'accent_color', value: options.accentColor }] : [])
   ] });
+  if (options.member !== false) await setupMember(call);
   log('ready');
   return path;
+}
+
+// A second newsletter, custom fields (Ghost 6.78+) and a member with a sign-in link, for the
+// signed-in checks (quality/members.spec.mjs). The link is used once, by quality/member-setup.mjs.
+async function setupMember(call) {
+  const json = (res) => res.json();
+  await call('POST', '/newsletters/', { newsletters: [{ name: 'Weekly digest', description: 'The week in one email' }] }, 0).catch(() => null);
+  const newsletters = (await call('GET', '/newsletters/?limit=50', null, 0).then(json)).newsletters;
+
+  let fields = [];
+  try {
+    await call('POST', '/members/metafields/custom/', { members_metafields: [
+      { name: 'Company', type: 'short_text', access: { member: 'write' } },
+      { name: 'Topics', type: 'list', settings: { options: ['Design', 'Code', 'Business'], multiple: true }, access: { member: 'write' } },
+      { name: 'Shipping address', type: 'address', access: { member: 'write' } },
+      { name: 'Member number', type: 'short_text', access: { member: 'read' } }
+    ] }, 0);
+    fields = (await call('GET', '/members/metafields/custom/', null, 0).then(json)).members_metafields
+      .map(({ key, name, type, access }) => ({ key, name, type, access: access.member }));
+  } catch {
+    log('no custom fields on this Ghost version');
+  }
+  const readOnly = fields.find((f) => f.access === 'read');
+
+  const member = (await call('POST', '/members/', { members: [{
+    email: 'reader@example.com',
+    name: "Reader O'Brien",
+    newsletters: [{ id: newsletters[0].id }],
+    ...(readOnly ? { metafields: { custom: { [readOnly.key]: 'A-1001' } } } : {})
+  }] }, 0).then(json)).members[0];
+  const signinUrl = (await call('GET', `/members/${member.id}/signin_urls/`, null, 0).then(json)).member_signin_urls[0].url;
+
+  mkdirSync(results, { recursive: true });
+  writeFileSync(join(results, 'member.json'), JSON.stringify({
+    email: member.email, name: member.name, signinUrl, newsletters: newsletters.length, fields
+  }, null, 2));
+  log(`member ${member.email}: ${newsletters.length} newsletters, ${fields.length} custom fields`);
 }
 
 async function defaultNavigation(path, urls) {

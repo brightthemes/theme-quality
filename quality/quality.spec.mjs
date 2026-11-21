@@ -1,62 +1,8 @@
 import { test, expect } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
 import { HtmlValidate } from 'html-validate';
-import { noTransitions, open, pages, quality, quick, record } from './shared.mjs';
+import { assertTargets, axeAllSchemes, open, pages, quality, quick, record, scheme } from './shared.mjs';
 
 const htmlValidate = new HtmlValidate({ extends: ['html-validate:standard'] });
-
-// Ghost's Portal and search widgets and third-party embeds aren't part of the theme
-const axe = (page) => new AxeBuilder({ page })
-  .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'])
-  .exclude('#ghost-portal-root')
-  .exclude('#sodo-search-root')
-  .exclude('iframe');
-
-const ignored = (id, node) => quality.axe.ignore.some((i) => i.id === id && node.target.join(' ').includes(i.target));
-
-const summarize = (violations) => violations
-  .map((v) => ({ ...v, nodes: v.nodes.filter((n) => !ignored(v.id, n)) }))
-  .filter((v) => v.nodes.length)
-  .map((v) => ({
-    id: v.id,
-    impact: v.impact,
-    help: v.help,
-    nodes: v.nodes.length,
-    examples: v.nodes.slice(0, 3).map((n) => `${n.target.join(' ')}: ${n.any[0]?.message || n.failureSummary}`)
-  }));
-
-// Color schemes to test: { attribute, values } sets an attribute on <html>, { class } toggles a class
-// for dark mode, null tests the page as it loads
-const scheme = quality.colorScheme;
-const schemes = !scheme ? ['default'] : scheme.class ? ['light', 'dark'] : scheme.values;
-
-// Without transitions, so axe doesn't read colors halfway between two schemes
-const setScheme = async (page, value) => {
-  if (!scheme) return;
-  await noTransitions(page);
-  await page.evaluate(({ scheme, value }) => {
-    const html = document.documentElement;
-    if (scheme.class) html.classList.toggle(scheme.class, value === 'dark');
-    else html.setAttribute(scheme.attribute, value);
-  }, { scheme, value });
-};
-
-const axeAllSchemes = async (page) => {
-  const found = {};
-  for (const value of schemes) {
-    await setScheme(page, value);
-    found[value] = summarize((await axe(page).analyze()).violations);
-  }
-  return found;
-};
-
-const assertTargets = (findings) => {
-  if (!quality.enforce) return;
-  expect(findings.html, 'HTML validation errors').toHaveLength(quality.html.maxErrors);
-  for (const [value, violations] of Object.entries(findings.axe)) {
-    expect(violations.filter((v) => quality.axe.failOn.includes(v.impact)), `accessibility violations (${value})`).toEqual([]);
-  }
-};
 
 for (const { name, path, status = 200 } of pages) {
   test(name, async ({ page }, info) => {
