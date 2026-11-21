@@ -1,0 +1,61 @@
+# This repo's own check: runs this version of theme-tools on Skeleton (zip and quality)
+name: Self-test
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  skeleton:
+    name: Skeleton
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: theme-tools
+
+      - uses: actions/checkout@v7
+        with:
+          repository: brightthemes/skeleton
+          path: skeleton
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.x'
+
+      - name: Install Skeleton with this theme-tools
+        working-directory: skeleton
+        run: |
+          npm ci
+          npm install --no-save ../theme-tools
+          npx playwright install --with-deps chromium
+
+      - name: Resolve the latest Ghost 6
+        id: ghost
+        run: echo "version=$(npm view ghost@6 version --json | node -p '[].concat(JSON.parse(require("fs").readFileSync(0))).at(-1)')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ghost-theme-tests
+          key: ghost-${{ steps.ghost.outputs.version }}
+
+      - name: Zip
+        working-directory: skeleton
+        run: npx theme-tools zip
+
+      - name: Quality
+        working-directory: skeleton
+        run: npx theme-tools quality --no-zip
+        env:
+          GHOST_VERSION: ${{ steps.ghost.outputs.version }}
+
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-results
+          path: skeleton/quality-results
+          include-hidden-files: true
+          retention-days: 14

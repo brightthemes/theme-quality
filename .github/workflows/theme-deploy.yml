@@ -1,0 +1,40 @@
+# Reusable: zips the theme like a release and uploads it to the theme's demo site. A theme
+# calls it from its .github/workflows/deploy.yml on push to main, with `secrets: inherit`
+# (GHOST_ADMIN_API_URL and GHOST_ADMIN_API_KEY in the theme repo's secrets).
+name: Theme deploy
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        default: '22.x'
+    secrets:
+      GHOST_ADMIN_API_URL:
+        required: true
+      GHOST_ADMIN_API_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run zip
+      - run: echo "NAME=$(jq -r '.name' package.json)" >> $GITHUB_ENV
+
+      - name: Deploy theme
+        uses: TryGhost/action-deploy-theme@v2
+        with:
+          api-url: ${{ secrets.GHOST_ADMIN_API_URL }}
+          api-key: ${{ secrets.GHOST_ADMIN_API_KEY }}
+          file: dist/${{ env.NAME }}.zip

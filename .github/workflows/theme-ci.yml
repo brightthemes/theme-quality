@@ -1,0 +1,89 @@
+# Reusable: build, gscan and zip like a release; the quality checks on a real Ghost;
+# and Dependabot's minor and patch updates merged once both pass. A theme calls it from
+# its .github/workflows/ci.yml on pull_request (see the README).
+name: Theme CI
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        default: '22.x'
+      quality:
+        description: Run the quality checks (needs demo/content.json)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run zip
+
+  quality:
+    name: Quality
+    if: inputs.quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Resolve the latest Ghost 6
+        id: ghost
+        run: echo "version=$(npm view ghost@6 version --json | node -p '[].concat(JSON.parse(require("fs").readFileSync(0))).at(-1)')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ghost-theme-tests
+          key: ghost-${{ steps.ghost.outputs.version }}
+
+      - run: npx theme-tools quality
+        env:
+          GHOST_VERSION: ${{ steps.ghost.outputs.version }}
+
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-results
+          path: quality-results
+          include-hidden-files: true
+          retention-days: 14
+
+  # Majors (and anything that fails CI) stay open for review
+  automerge:
+    name: Dependabot auto-merge
+    needs: [ci, quality]
+    if: ${{ !cancelled() && !failure() && github.event.pull_request.user.login == 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Get update metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v3
+
+      - name: Merge
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

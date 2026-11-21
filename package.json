@@ -1,0 +1,29 @@
+{
+  "name": "@brightthemes/theme-tools",
+  "version": "1.0.0",
+  "description": "Shared dev tooling for Bright Themes' Ghost themes: zip, release, and quality checks (smoke, accessibility, HTML validation, Lighthouse, size budget) on a real Ghost. Never part of a theme zip.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brightthemes/theme-tools.git"
+  },
+  "bin": {
+    "theme-tools": "bin/theme-tools.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "quality"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@lhci/cli": "^0.16.1",
+    "@playwright/test": "^1.65.1",
+    "gscan": "^6.7.0",
+    "html-validate": "^11.21.1"
+  }
+}

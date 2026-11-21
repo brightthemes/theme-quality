@@ -1,0 +1,95 @@
+# Reusable: publishes a GitHub release with the theme zip when the pushed commit's message is
+# exactly "v<package.json version>" (as `theme-tools release` creates it) and that version isn't
+# tagged yet. A theme calls it from its .github/workflows/release.yml on push to main.
+name: Theme release
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        default: '22.x'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check for release commit
+        id: check
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          VERSION=$(jq -r '.version' package.json)
+          if [ "$COMMIT_MESSAGE" = "v$VERSION" ] && ! git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Fetch all tags
+        run: git fetch --tags --force
+
+      # The commits and changed files since the last tag
+      - name: Generate release description
+        run: |
+          LAST_TAG=$(git tag --sort=-creatordate | head -n 1)
+          if [ -z "$LAST_TAG" ] || ! git rev-parse "$LAST_TAG" >/dev/null 2>&1; then
+            echo "Initial release." > release_body.txt
+          else
+            {
+              echo "Changes since $LAST_TAG:"
+              echo ""
+              git log "$LAST_TAG"..HEAD --pretty=format:"- %s"
+              echo ""
+              echo ""
+              echo ""
+              echo "Changed files:"
+              printf '```'
+              git diff --name-status "$LAST_TAG"..HEAD | sed 's/^A/[+]/;s/^M/[*]/;s/^D/[-]/;s/\t/ /g'
+              echo "[*] assets/built/app.css"
+              echo "[*] assets/built/app.js"
+              printf '```'
+            } > release_body.txt
+          fi
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run zip
+
+      - name: Get project metadata
+        run: |
+          echo "VERSION=$(jq -r '.version' package.json)" >> $GITHUB_ENV
+          echo "NAME=$(jq -r '.name' package.json)" >> $GITHUB_ENV
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}
+          body_path: release_body.txt
+          files: dist/${{ env.NAME }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
