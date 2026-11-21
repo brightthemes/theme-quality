@@ -27,6 +27,22 @@ export const noTransitions = (page) => page.addStyleTag({
   content: '*, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }'
 });
 
+// Errors from the site itself: uncaught errors, and console errors from its own pages and scripts.
+// Embeds (YouTube, Vimeo…) log errors from their own frames and scripts, which a theme can't change,
+// such as Chrome's "Permissions policy violation" for features a player tries to use.
+export function watchConsole(page) {
+  const errors = [];
+  const origin = new URL(process.env.BASE_URL).origin;
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return;
+    const source = message.location()?.url;
+    if (source && !source.startsWith(origin)) return;
+    errors.push(message.text());
+  });
+  return errors;
+}
+
 // Opens a page; in quick mode a page the site doesn't have is skipped instead of failing
 export async function open(page, test, { path, status = 200 }) {
   const response = await page.goto(path, { waitUntil: 'networkidle' });

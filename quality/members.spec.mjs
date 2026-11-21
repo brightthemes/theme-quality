@@ -2,7 +2,7 @@
 // Only on the test Ghost `theme-tools quality` starts: skipped with BASE_URL and in quick mode.
 import { test, expect } from '@playwright/test';
 import { existsSync } from 'fs';
-import { assertTargets, axeAllSchemes, member, memberStateFile, quality, quick, record } from './shared.mjs';
+import { assertTargets, axeAllSchemes, member, memberStateFile, quality, quick, record, watchConsole } from './shared.mjs';
 
 const signedIn = !quick && !!member && existsSync(memberStateFile);
 const pageName = (path) => `member-${path === '/' ? 'home' : path.replace(/^\/|\/$/g, '').replace(/\//g, '-')}`;
@@ -14,9 +14,7 @@ test.describe('signed in', () => {
   // Each page as the member sees it: status, console errors, horizontal scrolling, axe
   for (const path of quality.members.pages) {
     test(`signed in: ${path}`, async ({ page }, info) => {
-      const consoleErrors = [];
-      page.on('pageerror', (e) => consoleErrors.push(e.message));
-      page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()));
+      const consoleErrors = watchConsole(page);
 
       const response = await page.goto(path, { waitUntil: 'networkidle' });
       if (response.status() === 404) test.skip(true, `${path} isn't on this site`);

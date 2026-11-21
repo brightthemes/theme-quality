@@ -1,14 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { HtmlValidate } from 'html-validate';
-import { assertTargets, axeAllSchemes, open, pages, quality, quick, record, scheme } from './shared.mjs';
+import { assertTargets, axeAllSchemes, open, pages, quality, quick, record, scheme, watchConsole } from './shared.mjs';
 
 const htmlValidate = new HtmlValidate({ extends: ['html-validate:standard'] });
 
 for (const { name, path, status = 200 } of pages) {
   test(name, async ({ page }, info) => {
-    const consoleErrors = [];
-    page.on('pageerror', (e) => consoleErrors.push(e.message));
-    page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()));
+    const consoleErrors = watchConsole(page);
 
     const response = await open(page, test, { path, status });
     expect(response.status(), `${path} status`).toBe(status);
