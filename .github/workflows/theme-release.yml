@@ -13,7 +13,9 @@ permissions:
   contents: read
 
 jobs:
+  # Only for commits whose message starts with "v": a skipped job costs no minutes
   check:
+    if: startsWith(github.event.head_commit.message, 'v')
     runs-on: ubuntu-latest
     outputs:
       release: ${{ steps.check.outputs.release }}

@@ -1,6 +1,7 @@
 # Reusable: build, gscan and zip like a release; the quality checks on a real Ghost;
 # and Dependabot's minor and patch updates merged once both pass. A theme calls it from
-# its .github/workflows/ci.yml on pull_request (see the README).
+# its .github/workflows/ci.yml on pull_request, with types opened, synchronize, reopened and
+# ready_for_review (see the README).
 name: Theme CI
 on:
   workflow_call:
@@ -20,7 +21,30 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
+    # A new push to the pull request cancels the run before it
+    concurrency:
+      group: ${{ github.workflow }}-ci-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      theme: ${{ steps.files.outputs.theme }}
     steps:
+      # Whether the pull request changes anything the quality checks see: docs (*.md, LICENSE)
+      # and .github/ alone don't
+      - name: Changed files
+        id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -z "$PR" ]; then echo "theme=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          files=$(gh api "repos/${{ github.repository }}/pulls/$PR/files" --paginate --jq '.[].filename')
+          if echo "$files" | grep -qvE '(\.md$|^LICENSE|^\.github/)'; then theme=true; else theme=false; fi
+          echo "theme=$theme" >> "$GITHUB_OUTPUT"
+          echo "Theme files changed: $theme"
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
@@ -31,10 +55,16 @@ jobs:
       - run: npm ci
       - run: npm run zip
 
+  # Not on drafts (it runs when the pull request is marked ready, with "ready_for_review" in the
+  # caller's pull_request types), not when CI fails, and not for docs or workflow changes alone
   quality:
     name: Quality
-    if: inputs.quality
+    needs: ci
+    if: inputs.quality && !github.event.pull_request.draft && needs.ci.outputs.theme == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-quality-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
 

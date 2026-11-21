@@ -39,6 +39,8 @@ The workflows, in the theme's `.github/workflows/`:
 name: CI
 on:
   pull_request:
+    # ready_for_review: the quality checks skip drafts and run when a draft is marked ready
+    types: [opened, synchronize, reopened, ready_for_review]
 permissions:
   contents: write
   pull-requests: write
@@ -68,11 +70,22 @@ name: Deploy
 on:
   push:
     branches: [main, master]
+    # Changes the demo site doesn't show
+    paths-ignore: ['**.md', 'LICENSE*', '.github/**', 'demo/**', 'theme-tools.json']
 jobs:
   deploy:
     uses: brightthemes/theme-tools/.github/workflows/theme-deploy.yml@main
     secrets: inherit
 ```
+
+### Actions minutes
+
+The workflows run only what a change needs, since every repository's minutes count:
+
+- **CI** (build, gscan, zip: about a minute) runs on every pull request push; a newer push cancels the run before it.
+- **Quality** (about five minutes) runs after CI passes, and not on drafts (mark the pull request ready to run it), nor when a pull request only changes docs (`*.md`, `LICENSE`) or `.github/`. On CI, Lighthouse runs once per page (`quality.lighthouseRuns` to change it), locally three times.
+- **Release** checks only commits whose message starts with `v`; **Deploy** skips pushes that only change docs, `.github/`, `demo/` or `theme-tools.json`.
+- **Dependabot** runs monthly (`interval: monthly` in `.github/dependabot.yml`), with minor and patch updates grouped into one pull request; security updates still come when they're published.
 
 ## Commands
 
@@ -169,6 +182,7 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
 - **`quality.enforce`**: `false` reports findings without failing on them (only the smoke checks fail), for a first run on an older theme.
 - **`quality.report`**: `true` reports everything, smoke checks and Lighthouse included, and the run always passes. For a theme moving to theme-tools: its CI shows the findings without blocking pull requests, until the fixes land and it's turned off. On GitHub Actions the summary also goes on the run's page.
 - **`quality.pages`**: replaces the picked pages; `extraPages` adds to them. Each is `{ "name": "…", "path": "/…/" }`, with `"status": 404` for an expected error.
+- **`quality.lighthouseRuns`**: Lighthouse runs per page (default 1 on CI, 3 locally; the median counts).
 - **`quality.colorScheme`**: `{ "attribute", "values" }` sets an attribute on `<html>`; `{ "class": "dark" }` toggles a class; `null` tests one scheme, as the page loads.
 - **`quality.interactions`**: the selectors for the menu test; `null` skips that part (the summary lists what was skipped).
 - **`quality.a11y`**: the keyboard, reflow, motion and forced colors checks, by page name (the names in `quality-results/pages.json`). `skipLink: false` for a theme without one; `tabStops` is how many Tab stops the keyboard check follows.
