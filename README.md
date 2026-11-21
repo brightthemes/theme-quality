@@ -88,7 +88,7 @@ jobs:
 
 ### quality
 
-Installs the latest Ghost 6 once (in `~/.cache/ghost-theme-tests`, never under `/tmp`: gscan deletes files from themes it finds there), starts it on port 2369 with a fresh database, uploads the zip, imports `demo/content.json`, uploads `routes.yaml` and sets a navigation with a dropdown. Then:
+Installs the latest Ghost 6 once (in `~/.cache/ghost-theme-tests`, never under `/tmp`: gscan deletes files from themes it finds there), starts it on port 2369 with a fresh database, uploads the zip, imports `demo/content.json`, uploads `routes.yaml` and sets a navigation with a dropdown. The demo's images on other hosts (picsum.photos, Ghost's default cover) are uploaded to that Ghost first and cached, so Ghost resizes them as it would a publisher's images and Lighthouse measures what a real site serves; Unsplash images stay, since Ghost resizes those by URL. Then:
 
 - **Playwright**, desktop and mobile, on each page: status code, console errors, horizontal scrolling, HTML validation, and axe in each color scheme. Also the color scheme toggle, the mobile menu and a dropdown, with axe on the open menus.
 - **Accessibility checks axe can't make** (`quality/a11y.spec.mjs`), each failing the run when `enforce` is on:
