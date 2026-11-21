@@ -107,6 +107,8 @@ The pages come from the demo content: home, page 2, the longest post, a members-
 
 Signed-in checks run only on the test Ghost `quality` starts, not with `BASE_URL` or in `a11y`.
 
+On GitHub Actions, the summary of each run is also written to the run's page (the job summary).
+
 Results land in `quality-results/`: `report/index.html` (Playwright), `findings/` (one JSON per page and check), `forced-colors/`, `lighthouse/` and `pages.json`.
 
 Automated checks find part of what WCAG asks. Before a release, also listen to the home page and a post with a screen reader (VoiceOver on a Mac, NVDA on Windows): headings, landmarks, link and button names, image descriptions, and the menus.
@@ -131,6 +133,7 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
   "release": { "quality": true, "stamp": true },
   "quality": {
     "enforce": true,
+    "report": false,
     "pages": null,
     "extraPages": [],
     "lighthousePages": ["home", "post"],
@@ -164,6 +167,7 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
 
 - **`zip.exclude`**: more `zip -x` patterns, added to the built-in ones (`dist*`, `demo*`, `node_modules*`, dotfiles, `TODO.md`, `private.hbs`, `theme.js`, `scripts*`, `prototypes*`, `tests*`, `quality-results*`, `DEVELOPMENT.md`, `CLAUDE.md`, `theme-tools.json`). `AGENTS.md` ships on purpose: it tells buyers' AI assistants how the theme works, so internal notes (setup steps, the brief, release notes) belong in `DEVELOPMENT.md`.
 - **`quality.enforce`**: `false` reports findings without failing on them (only the smoke checks fail), for a first run on an older theme.
+- **`quality.report`**: `true` reports everything, smoke checks and Lighthouse included, and the run always passes. For a theme moving to theme-tools: its CI shows the findings without blocking pull requests, until the fixes land and it's turned off. On GitHub Actions the summary also goes on the run's page.
 - **`quality.pages`**: replaces the picked pages; `extraPages` adds to them. Each is `{ "name": "…", "path": "/…/" }`, with `"status": 404` for an expected error.
 - **`quality.colorScheme`**: `{ "attribute", "values" }` sets an attribute on `<html>`; `{ "class": "dark" }` toggles a class; `null` tests one scheme, as the page loads.
 - **`quality.interactions`**: the selectors for the menu test; `null` skips that part (the summary lists what was skipped).

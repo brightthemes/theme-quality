@@ -48,12 +48,14 @@ jobs:
       - name: Fetch all tags
         run: git fetch --tags --force
 
-      # The commits and changed files since the last tag
+      # The commits and changed files since the last tag (the built files are added after the build)
       - name: Generate release description
+        id: notes
         run: |
           LAST_TAG=$(git tag --sort=-creatordate | head -n 1)
           if [ -z "$LAST_TAG" ] || ! git rev-parse "$LAST_TAG" >/dev/null 2>&1; then
             echo "Initial release." > release_body.txt
+            echo "files=false" >> "$GITHUB_OUTPUT"
           else
             {
               echo "Changes since $LAST_TAG:"
@@ -61,14 +63,11 @@ jobs:
               git log "$LAST_TAG"..HEAD --pretty=format:"- %s"
               echo ""
               echo ""
-              echo ""
               echo "Changed files:"
-              printf '```'
+              echo '```'
               git diff --name-status "$LAST_TAG"..HEAD | sed 's/^A/[+]/;s/^M/[*]/;s/^D/[-]/;s/\t/ /g'
-              echo "[*] assets/built/app.css"
-              echo "[*] assets/built/app.js"
-              printf '```'
             } > release_body.txt
+            echo "files=true" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/setup-node@v7
@@ -78,6 +77,19 @@ jobs:
 
       - run: npm ci
       - run: npm run zip
+
+      # The built assets always change with a release: Vite themes build to assets/built, Gulp themes to assets/dist
+      - name: Add the built files
+        if: steps.notes.outputs.files == 'true'
+        run: |
+          {
+            for dir in assets/built assets/dist; do
+              [ -d "$dir" ] && find "$dir" -maxdepth 1 -type f | sort | while read -r f; do
+                grep -qxF "[*] $f" release_body.txt || echo "[*] $f"
+              done
+            done
+            echo '```'
+          } >> release_body.txt
 
       - name: Get project metadata
         run: |
