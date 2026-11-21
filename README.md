@@ -96,10 +96,16 @@ Installs the latest Ghost 6 once (in `~/.cache/ghost-theme-tests`, never under `
   - **Reflow:** no horizontal scrolling at 320px wide (400% zoom), also with WCAG's increased text spacing; text clipped by that spacing is listed, not failed. WCAG 1.4.10, 1.4.12.
   - **Reduced motion:** with it on, no animation runs forever or longer than 5 seconds; smooth scrolling that stays on is listed. WCAG 2.2.2.
   - **Forced colors** (Windows High Contrast): screenshots of the home page and the post in `quality-results/forced-colors/`, to look at.
+- **Signed in** (`quality/members.spec.mjs`): the test Ghost also gets a second newsletter, four custom fields on Ghost 6.78+ (short text, list and address members can edit, and a read-only one), and a member, Reader O'Brien, signed in once through a Ghost sign-in link. As that member:
+  - each page in `quality.members.pages` (the account and membership pages and the home page by default): status, console errors, horizontal scrolling and axe in each color scheme; pages the site doesn't have are skipped
+  - on an account page built from Skeleton's member partials (`data-member-*` hooks): the name is shown and saved, a newsletter goes on and off, the read-only custom field is shown and a custom field is saved, each checked against what Ghost then holds
+- Before axe reads a page, empty text fields get sample text: an empty field has no text to check contrast on, so light text on a white field in dark mode would otherwise pass.
 - **Lighthouse** on the home page and the longest post (3 runs each).
 - **Size budget** of the built files, gzipped.
 
 The pages come from the demo content: home, page 2, the longest post, a members-only and a paid post, a post and a page for each custom template, a page, the most-used tag and author, and the 404 page. Their URLs come from Ghost, so collections in `routes.yaml` are respected.
+
+Signed-in checks run only on the test Ghost `quality` starts, not with `BASE_URL` or in `a11y`.
 
 Results land in `quality-results/`: `report/index.html` (Playwright), `findings/` (one JSON per page and check), `forced-colors/`, `lighthouse/` and `pages.json`.
 
@@ -150,6 +156,7 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
     "html": { "maxErrors": 0, "ignore": [] },
     "lighthouse": { "performance": 0.85, "accessibility": 0.95, "best-practices": 0.95, "seo": 0.95 },
     "budget": {},
+    "members": { "enabled": true, "pages": ["/account/", "/membership/", "/"] },
     "ghost": { "navigation": null, "accentColor": "#5544ff", "routes": true }
   }
 }
@@ -163,6 +170,7 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
 - **`quality.a11y`**: the keyboard, reflow, motion and forced colors checks, by page name (the names in `quality-results/pages.json`). `skipLink: false` for a theme without one; `tabStops` is how many Tab stops the keyboard check follows.
 - **`quality.axe.ignore`** and **`quality.html.ignore`**: findings to ignore, each with a `reason`. `{ "id": "rule", "target": "part of the selector" }` for axe, `{ "match": "start of the message" }` for HTML. Findings in Ghost's own card markup are ignored already.
 - **`quality.budget`**: `{ "assets/built/app.js": 40 }`, in gzipped KB.
+- **`quality.members`**: `enabled: false` sets up no member and skips the signed-in checks; `pages` are the pages checked signed in.
 - **`quality.ghost.navigation`**: Ghost navigation items (`[{ "label", "url" }]`) instead of the default, which has a dropdown in Skeleton's style (`-` items).
 
 ## Versions

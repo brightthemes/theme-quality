@@ -8,6 +8,7 @@ export default defineConfig({
   outputDir: join(results, 'playwright'),
   reporter: [['list'], ['html', { outputFolder: join(results, 'report'), open: 'never' }]],
   fullyParallel: true,
+  globalSetup: './member-setup.mjs',
   use: {
     baseURL: process.env.BASE_URL,
     launchOptions: { executablePath: process.env.CHROMIUM_PATH || undefined }
