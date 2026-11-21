@@ -146,4 +146,4 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
 
 ## Versions
 
-Themes use `main`: the package as `github:brightthemes/theme-tools#main`, pinned to a commit by each theme's lockfile (`npm update @brightthemes/theme-tools` moves it), and the workflows as `@main`, which every theme picks up at once. So change `main` through pull requests: the Self-test workflow runs each one on Skeleton. Version tags can come later without changing how themes use it.
+Themes use `main`: the package as `github:brightthemes/theme-tools#main`, pinned to a commit by each theme's lockfile (`npm update @brightthemes/theme-tools` moves it), and the workflows as `@main`, which every theme picks up at once. So change `main` through pull requests: the Self-test workflow runs each one on Skeleton. It needs a `SKELETON_TOKEN` secret in this repo (**Settings › Secrets and variables › Actions**): a fine-grained token with read-only Contents access to `brightthemes/skeleton`, which is private. Without it the self-test is skipped, with a notice. Version tags can come later without changing how themes use it.

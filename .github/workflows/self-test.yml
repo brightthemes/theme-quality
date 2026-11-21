@@ -1,4 +1,6 @@
-# This repo's own check: runs this version of theme-tools on Skeleton (zip and quality)
+# This repo's own check: runs this version of theme-tools on Skeleton (zip and quality).
+# Skeleton is private, so this needs a SKELETON_TOKEN secret: a fine-grained token with
+# read-only Contents access to brightthemes/skeleton. Without it the job is skipped.
 name: Self-test
 on:
   pull_request:
@@ -12,21 +14,37 @@ jobs:
   skeleton:
     name: Skeleton
     runs-on: ubuntu-latest
+    env:
+      SKELETON_TOKEN: ${{ secrets.SKELETON_TOKEN }}
     steps:
+      - name: Check for the Skeleton token
+        id: token
+        run: |
+          if [ -n "$SKELETON_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Self-test skipped: add a SKELETON_TOKEN secret (read-only Contents on brightthemes/skeleton) to run theme-tools on Skeleton"
+          fi
+
       - uses: actions/checkout@v7
+        if: steps.token.outputs.ready
         with:
           path: theme-tools
 
       - uses: actions/checkout@v7
+        if: steps.token.outputs.ready
         with:
           repository: brightthemes/skeleton
+          token: ${{ secrets.SKELETON_TOKEN }}
           path: skeleton
 
       - uses: actions/setup-node@v7
+        if: steps.token.outputs.ready
         with:
           node-version: '22.x'
 
       - name: Install Skeleton with this theme-tools
+        if: steps.token.outputs.ready
         working-directory: skeleton
         run: |
           npm ci
@@ -34,25 +52,29 @@ jobs:
           npx theme-tools setup --with-deps
 
       - name: Resolve the latest Ghost 6
+        if: steps.token.outputs.ready
         id: ghost
         run: echo "version=$(npm view ghost@6 version --json | node -p '[].concat(JSON.parse(require("fs").readFileSync(0))).at(-1)')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/cache@v6
+        if: steps.token.outputs.ready
         with:
           path: ~/.cache/ghost-theme-tests
           key: ghost-${{ steps.ghost.outputs.version }}
 
       - name: Zip
+        if: steps.token.outputs.ready
         working-directory: skeleton
         run: npx theme-tools zip
 
       - name: Quality
+        if: steps.token.outputs.ready
         working-directory: skeleton
         run: npx theme-tools quality --no-zip
         env:
           GHOST_VERSION: ${{ steps.ghost.outputs.version }}
 
-      - if: always()
+      - if: always() && steps.token.outputs.ready
         uses: actions/upload-artifact@v7
         with:
           name: quality-results
