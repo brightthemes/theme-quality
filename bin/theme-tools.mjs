@@ -6,6 +6,8 @@ const help = `theme-tools: dev tooling for Bright Themes' Ghost themes (run in a
   theme-tools test                      gscan, Ghost's theme validator
   theme-tools zip [--no-build]          build, gscan, and zip the theme into dist/
   theme-tools stamp                     write the version into default.hbs (<meta name="ghost-theme">)
+  theme-tools setup [--with-deps]       install the quality checks' dependencies and Chromium
+                                        (--with-deps: Chromium's system libraries too, for CI)
   theme-tools quality [--no-zip]        smoke, accessibility, HTML, Lighthouse and size checks on a
                                         throwaway Ghost with demo/content.json (BASE_URL: a running Ghost)
   theme-tools release [minor|patch|major] [--no-quality] [--no-push]
@@ -29,6 +31,9 @@ try {
       console.log(stamped ? 'Stamped default.hbs' : 'default.hbs has no theme-color or ghost-theme meta tag: nothing stamped');
       break;
     }
+    case 'setup':
+      (await import('../lib/deps.mjs')).setup({ withDeps: flag('--with-deps') });
+      break;
     case 'quality': {
       const failures = await (await import('../lib/quality.mjs')).quality({ makeZip: !flag('--no-zip') });
       if (failures.length) {

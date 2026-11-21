@@ -44,7 +44,7 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx theme-tools setup --with-deps
 
       - name: Resolve the latest Ghost 6
         id: ghost

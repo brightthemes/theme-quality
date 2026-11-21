@@ -7,14 +7,16 @@ Shared dev tooling for Bright Themes' Ghost themes:
 - **`quality`**: smoke checks, accessibility (axe, WCAG 2.2 AA, light and dark), HTML validation, Lighthouse and a size budget, on a throwaway Ghost with the theme's demo content
 - **Reusable GitHub workflows** for CI, releases and deploys
 
-None of it goes into a theme zip: it's a dev dependency, and `theme-tools.json` and `quality-results/` are excluded.
+None of it goes into a theme zip: `theme-tools.json` and `quality-results/` are excluded. A theme's `package.json` and `package-lock.json` do ship (buyers rebuild with them), so they only gain theme-tools and gscan. The quality checks' own dependencies (Playwright, Lighthouse, axe, html-validate, about 270 MB) install into theme-tools' `quality/` folder on the first `setup` or `quality` run, from `quality/package-lock.json`.
 
 ## Set up a theme
 
 ```bash
-npm install --save-dev github:brightthemes/theme-tools#semver:^1.0.0
-npx playwright install chromium
+npm install github:brightthemes/theme-tools#main
+npx theme-tools setup
 ```
+
+(`setup` installs the quality checks' dependencies and Chromium, once per machine and theme-tools version.)
 
 Then, in the theme's `package.json`:
 
@@ -42,7 +44,7 @@ permissions:
   pull-requests: write
 jobs:
   ci:
-    uses: brightthemes/theme-tools/.github/workflows/theme-ci.yml@v1
+    uses: brightthemes/theme-tools/.github/workflows/theme-ci.yml@main
     # with:
     #   quality: false   # until the theme has demo/content.json
 ```
@@ -57,7 +59,7 @@ permissions:
   contents: write
 jobs:
   release:
-    uses: brightthemes/theme-tools/.github/workflows/theme-release.yml@v1
+    uses: brightthemes/theme-tools/.github/workflows/theme-release.yml@main
 ```
 
 ```yaml
@@ -68,7 +70,7 @@ on:
     branches: [main, master]
 jobs:
   deploy:
-    uses: brightthemes/theme-tools/.github/workflows/theme-deploy.yml@v1
+    uses: brightthemes/theme-tools/.github/workflows/theme-deploy.yml@main
     secrets: inherit
 ```
 
@@ -79,6 +81,7 @@ jobs:
 | `theme-tools test` | gscan, Ghost's theme validator |
 | `theme-tools zip [--no-build]` | `npm run build`, gscan, then `dist/<name>.zip` |
 | `theme-tools stamp` | writes `<meta name="ghost-theme" content="Name 1.2.0">` into `default.hbs` |
+| `theme-tools setup [--with-deps]` | installs the quality checks' dependencies and Chromium (`--with-deps`: its system libraries too, for CI) |
 | `theme-tools quality [--no-zip]` | the quality checks (below) |
 | `theme-tools release [minor\|patch\|major] [--no-quality] [--no-push]` | the release (below) |
 
@@ -143,4 +146,4 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
 
 ## Versions
 
-Releases are tagged `vX.Y.Z`, and the `v1` tag moves to the latest 1.x so the workflows (`@v1`) and the package (`semver:^1.0.0`) get fixes without changes in the themes. A change that needs changes in the themes is a new major.
+Themes use `main`: the package as `github:brightthemes/theme-tools#main`, pinned to a commit by each theme's lockfile (`npm update @brightthemes/theme-tools` moves it), and the workflows as `@main`, which every theme picks up at once. So change `main` through pull requests: the Self-test workflow runs each one on Skeleton. Version tags can come later without changing how themes use it.

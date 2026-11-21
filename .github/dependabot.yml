@@ -1,0 +1,35 @@
+# Weekly dependency updates for theme-tools and its quality checks' own dependencies
+# (quality/package.json). The Self-test workflow runs each update on Skeleton.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /quality
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Bucharest
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Bucharest
+    groups:
+      actions-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "chore(actions)"

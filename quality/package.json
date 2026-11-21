@@ -1,0 +1,12 @@
+{
+  "name": "theme-tools-quality",
+  "private": true,
+  "description": "The quality checks' own dependencies. theme-tools installs them here on the first `theme-tools quality` or `setup`, so they never land in a theme's dependencies or lockfile (which ship in the theme zip).",
+  "type": "module",
+  "dependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@lhci/cli": "^0.16.1",
+    "@playwright/test": "^1.65.1",
+    "html-validate": "^11.21.1"
+  }
+}

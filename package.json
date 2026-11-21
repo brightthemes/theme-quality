@@ -14,16 +14,15 @@
   "files": [
     "bin",
     "lib",
-    "quality"
+    "quality/*.mjs",
+    "quality/*.cjs",
+    "quality/package.json",
+    "quality/package-lock.json"
   ],
   "engines": {
     "node": ">=22"
   },
   "dependencies": {
-    "@axe-core/playwright": "^4.14.0",
-    "@lhci/cli": "^0.16.1",
-    "@playwright/test": "^1.65.1",
-    "gscan": "^6.7.0",
-    "html-validate": "^11.21.1"
+    "gscan": "^6.7.0"
   }
 }

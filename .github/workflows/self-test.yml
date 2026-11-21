@@ -31,7 +31,7 @@ jobs:
         run: |
           npm ci
           npm install --no-save ../theme-tools
-          npx playwright install --with-deps chromium
+          npx theme-tools setup --with-deps
 
       - name: Resolve the latest Ghost 6
         id: ghost
