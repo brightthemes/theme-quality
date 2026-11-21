@@ -7,8 +7,7 @@ updates:
       - /
       - /quality
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "07:00"
       timezone: Europe/Bucharest
     groups:
@@ -22,8 +21,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "07:00"
       timezone: Europe/Bucharest
     groups:
