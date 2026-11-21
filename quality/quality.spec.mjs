@@ -1,12 +1,8 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { HtmlValidate } from 'html-validate';
-import { mkdirSync, writeFileSync } from 'fs';
-import { join } from 'path';
-import { loadConfig, readJson, results } from '../lib/config.mjs';
+import { noTransitions, open, pages, quality, quick, record } from './shared.mjs';
 
-const { quality } = loadConfig();
-const pages = readJson(join(results, 'pages.json'));
 const htmlValidate = new HtmlValidate({ extends: ['html-validate:standard'] });
 
 // Ghost's Portal and search widgets and third-party embeds aren't part of the theme
@@ -29,12 +25,6 @@ const summarize = (violations) => violations
     examples: v.nodes.slice(0, 3).map((n) => `${n.target.join(' ')}: ${n.any[0]?.message || n.failureSummary}`)
   }));
 
-const record = (info, name, data) => {
-  const dir = join(results, 'findings', info.project.name);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, `${name}.json`), JSON.stringify(data, null, 2));
-};
-
 // Color schemes to test: { attribute, values } sets an attribute on <html>, { class } toggles a class
 // for dark mode, null tests the page as it loads
 const scheme = quality.colorScheme;
@@ -43,7 +33,7 @@ const schemes = !scheme ? ['default'] : scheme.class ? ['light', 'dark'] : schem
 // Without transitions, so axe doesn't read colors halfway between two schemes
 const setScheme = async (page, value) => {
   if (!scheme) return;
-  await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; }' });
+  await noTransitions(page);
   await page.evaluate(({ scheme, value }) => {
     const html = document.documentElement;
     if (scheme.class) html.classList.toggle(scheme.class, value === 'dark');
@@ -74,13 +64,14 @@ for (const { name, path, status = 200 } of pages) {
     page.on('pageerror', (e) => consoleErrors.push(e.message));
     page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()));
 
-    const response = await page.goto(path, { waitUntil: 'networkidle' });
+    const response = await open(page, test, { path, status });
     expect(response.status(), `${path} status`).toBe(status);
 
-    const report = await htmlValidate.validateString(await response.text());
+    // The dev server adds its own script, and its console has dev messages: no HTML or console checks there
+    const report = quick ? { results: [] } : await htmlValidate.validateString(await response.text());
     const findings = {
       path,
-      consoleErrors: consoleErrors.filter((e) => !(status !== 200 && e.includes(`status of ${status}`))),
+      consoleErrors: quick ? [] : consoleErrors.filter((e) => !(status !== 200 && e.includes(`status of ${status}`))),
       horizontalScroll: await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1),
       html: report.results.flatMap((r) => r.messages).filter((m) => m.severity === 2)
         .map((m) => `${m.ruleId}: ${m.message} (line ${m.line}: ${m.selector})`)

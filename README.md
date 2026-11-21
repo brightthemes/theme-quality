@@ -83,6 +83,7 @@ jobs:
 | `theme-tools stamp` | writes `<meta name="ghost-theme" content="Name 1.2.0">` into `default.hbs` |
 | `theme-tools setup [--with-deps]` | installs the quality checks' dependencies and Chromium (`--with-deps`: its system libraries too, for CI) |
 | `theme-tools quality [--no-zip]` | the quality checks (below) |
+| `theme-tools a11y` | the accessibility and smoke checks only, in under a minute, against `npm run dev` (or `BASE_URL`); no build, HTML validation, Lighthouse or budget |
 | `theme-tools release [minor\|patch\|major] [--no-quality] [--no-push]` | the release (below) |
 
 ### quality
@@ -90,12 +91,23 @@ jobs:
 Installs the latest Ghost 6 once (in `~/.cache/ghost-theme-tests`, never under `/tmp`: gscan deletes files from themes it finds there), starts it on port 2369 with a fresh database, uploads the zip, imports `demo/content.json`, uploads `routes.yaml` and sets a navigation with a dropdown. Then:
 
 - **Playwright**, desktop and mobile, on each page: status code, console errors, horizontal scrolling, HTML validation, and axe in each color scheme. Also the color scheme toggle, the mobile menu and a dropdown, with axe on the open menus.
+- **Accessibility checks axe can't make** (`quality/a11y.spec.mjs`), each failing the run when `enforce` is on:
+  - **Keyboard:** the first Tab stop is a skip link that moves to its target; every Tab stop is visible (not hidden, off-screen or covered) and has a visible focus style (the element looks different focused than not); Enter opens the dropdown and the mobile menu, Tab moves into the mobile menu, and Escape closes them with focus back on their button. WCAG 2.1.2, 2.4.1, 2.4.3, 2.4.7.
+  - **Reflow:** no horizontal scrolling at 320px wide (400% zoom), also with WCAG's increased text spacing; text clipped by that spacing is listed, not failed. WCAG 1.4.10, 1.4.12.
+  - **Reduced motion:** with it on, no animation runs forever or longer than 5 seconds; smooth scrolling that stays on is listed. WCAG 2.2.2.
+  - **Forced colors** (Windows High Contrast): screenshots of the home page and the post in `quality-results/forced-colors/`, to look at.
 - **Lighthouse** on the home page and the longest post (3 runs each).
 - **Size budget** of the built files, gzipped.
 
 The pages come from the demo content: home, page 2, the longest post, a members-only and a paid post, a post and a page for each custom template, a page, the most-used tag and author, and the 404 page. Their URLs come from Ghost, so collections in `routes.yaml` are respected.
 
-Results land in `quality-results/`: `report/index.html` (Playwright), `findings/` (one JSON per page), `lighthouse/` and `pages.json`.
+Results land in `quality-results/`: `report/index.html` (Playwright), `findings/` (one JSON per page and check), `forced-colors/`, `lighthouse/` and `pages.json`.
+
+Automated checks find part of what WCAG asks. Before a release, also listen to the home page and a post with a screen reader (VoiceOver on a Mac, NVDA on Windows): headings, landmarks, link and button names, image descriptions, and the menus.
+
+### a11y
+
+The quick version while you work: with `npm run dev` running (or `BASE_URL` pointing at any Ghost with the theme active), it runs the Playwright checks above in under a minute. The pages come from `demo/content.json` at Ghost's default URLs; ones the site doesn't have are skipped.
 
 Environment variables: `BASE_URL` tests a running Ghost instead (it must have the demo content); `GHOST_VERSION`, `GHOST_PORT`, `GHOST_DIR`; `CHROMIUM_PATH` and `CHROME_PATH` use a local Chromium.
 
@@ -126,6 +138,14 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
         "mobile": "[data-nav=\"mobile\"] li.is-mainitem > button"
       }
     },
+    "a11y": {
+      "skipLink": true,
+      "tabStops": 40,
+      "keyboardPages": ["home", "post"],
+      "reflowPages": ["home", "post", "page", "tag", "author", "error-404"],
+      "motionPages": ["home", "post"],
+      "forcedColorsPages": ["home", "post"]
+    },
     "axe": { "failOn": ["critical", "serious"], "ignore": [] },
     "html": { "maxErrors": 0, "ignore": [] },
     "lighthouse": { "performance": 0.85, "accessibility": 0.95, "best-practices": 0.95, "seo": 0.95 },
@@ -140,6 +160,7 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
 - **`quality.pages`**: replaces the picked pages; `extraPages` adds to them. Each is `{ "name": "…", "path": "/…/" }`, with `"status": 404` for an expected error.
 - **`quality.colorScheme`**: `{ "attribute", "values" }` sets an attribute on `<html>`; `{ "class": "dark" }` toggles a class; `null` tests one scheme, as the page loads.
 - **`quality.interactions`**: the selectors for the menu test; `null` skips that part (the summary lists what was skipped).
+- **`quality.a11y`**: the keyboard, reflow, motion and forced colors checks, by page name (the names in `quality-results/pages.json`). `skipLink: false` for a theme without one; `tabStops` is how many Tab stops the keyboard check follows.
 - **`quality.axe.ignore`** and **`quality.html.ignore`**: findings to ignore, each with a `reason`. `{ "id": "rule", "target": "part of the selector" }` for axe, `{ "match": "start of the message" }` for HTML. Findings in Ghost's own card markup are ignored already.
 - **`quality.budget`**: `{ "assets/built/app.js": 40 }`, in gzipped KB.
 - **`quality.ghost.navigation`**: Ghost navigation items (`[{ "label", "url" }]`) instead of the default, which has a dropdown in Skeleton's style (`-` items).

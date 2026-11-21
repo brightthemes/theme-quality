@@ -10,6 +10,8 @@ const help = `theme-tools: dev tooling for Bright Themes' Ghost themes (run in a
                                         (--with-deps: Chromium's system libraries too, for CI)
   theme-tools quality [--no-zip]        smoke, accessibility, HTML, Lighthouse and size checks on a
                                         throwaway Ghost with demo/content.json (BASE_URL: a running Ghost)
+  theme-tools a11y                      the accessibility and smoke checks only, in about a minute, against
+                                        \`npm run dev\` (BASE_URL: any running Ghost with the theme)
   theme-tools release [minor|patch|major] [--no-quality] [--no-push]
                                         bump, stamp, zip, quality checks, commit "vX.Y.Z" and push
 
@@ -36,6 +38,14 @@ try {
       break;
     case 'quality': {
       const failures = await (await import('../lib/quality.mjs')).quality({ makeZip: !flag('--no-zip') });
+      if (failures.length) {
+        console.error(`\nFailed: ${failures.join(', ')}`);
+        process.exitCode = 1;
+      }
+      break;
+    }
+    case 'a11y': {
+      const failures = await (await import('../lib/quality.mjs')).quality({ quick: true });
       if (failures.length) {
         console.error(`\nFailed: ${failures.join(', ')}`);
         process.exitCode = 1;
