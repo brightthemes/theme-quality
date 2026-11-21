@@ -1,5 +1,5 @@
 # Weekly dependency updates for theme-tools and its quality checks' own dependencies
-# (quality/package.json). The Self-test workflow runs each update on Skeleton.
+# (quality/package.json). Test an update on Skeleton before merging it (see the README).
 version: 2
 updates:
   - package-ecosystem: npm

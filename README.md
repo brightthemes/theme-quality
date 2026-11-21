@@ -146,4 +146,10 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
 
 ## Versions
 
-Themes use `main`: the package as `github:brightthemes/theme-tools#main`, pinned to a commit by each theme's lockfile (`npm update @brightthemes/theme-tools` moves it), and the workflows as `@main`, which every theme picks up at once. So change `main` through pull requests: the Self-test workflow runs each one on Skeleton. It needs a `SKELETON_TOKEN` secret in this repo (**Settings › Secrets and variables › Actions**): a fine-grained token with read-only Contents access to `brightthemes/skeleton`, which is private. Without it the self-test is skipped, with a notice. Version tags can come later without changing how themes use it.
+Themes use `main`: the package as `github:brightthemes/theme-tools#main`, pinned to a commit by each theme's lockfile (`npm update @brightthemes/theme-tools` moves it), and the workflows as `@main`, which every theme picks up at once. Skeleton is the testing ground for changes to theme-tools:
+
+1. Change theme-tools on a branch.
+2. In a Skeleton branch, install that branch (`npm install github:brightthemes/theme-tools#<branch>`) and, for workflow changes, point Skeleton's workflows to `@<branch>`. Open a pull request: Skeleton's CI runs the checks with the change.
+3. Once it passes, merge the theme-tools branch, and set Skeleton back to `#main` and `@main` (`npm install github:brightthemes/theme-tools#main` updates its lockfile to the merged commit).
+
+Workflow changes reach every theme as soon as they're on `main`, so test those on Skeleton first.
