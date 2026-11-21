@@ -135,7 +135,7 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
 }
 ```
 
-- **`zip.exclude`**: more `zip -x` patterns, added to the built-in ones (`dist*`, `demo*`, `node_modules*`, dotfiles, `TODO.md`, `private.hbs`, `theme.js`, `scripts*`, `prototypes*`, `tests*`, `quality-results*`, `AGENTS.md`, `CLAUDE.md`, `theme-tools.json`).
+- **`zip.exclude`**: more `zip -x` patterns, added to the built-in ones (`dist*`, `demo*`, `node_modules*`, dotfiles, `TODO.md`, `private.hbs`, `theme.js`, `scripts*`, `prototypes*`, `tests*`, `quality-results*`, `DEVELOPMENT.md`, `CLAUDE.md`, `theme-tools.json`). `AGENTS.md` ships on purpose: it tells buyers' AI assistants how the theme works, so internal notes (setup steps, the brief, release notes) belong in `DEVELOPMENT.md`.
 - **`quality.enforce`**: `false` reports findings without failing on them (only the smoke checks fail), for a first run on an older theme.
 - **`quality.pages`**: replaces the picked pages; `extraPages` adds to them. Each is `{ "name": "…", "path": "/…/" }`, with `"status": 404` for an expected error.
 - **`quality.colorScheme`**: `{ "attribute", "values" }` sets an attribute on `<html>`; `{ "class": "dark" }` toggles a class; `null` tests one scheme, as the page loads.
