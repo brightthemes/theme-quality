@@ -29,7 +29,9 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
-      - run: npm run zip
+      # The demo zip: the theme plus the templates in demo/ that the demo site's routes use. From
+      # theme-tools' main, like this workflow, not the version the theme's lockfile pins
+      - run: npx --yes --package=github:brightthemes/theme-tools#main theme-tools zip --demo
       - run: echo "NAME=$(jq -r '.name' package.json)" >> $GITHUB_ENV
 
       - name: Deploy theme
@@ -37,4 +39,4 @@ jobs:
         with:
           api-url: ${{ secrets.GHOST_ADMIN_API_URL }}
           api-key: ${{ secrets.GHOST_ADMIN_API_KEY }}
-          file: dist/${{ env.NAME }}.zip
+          file: dist/demo/${{ env.NAME }}.zip

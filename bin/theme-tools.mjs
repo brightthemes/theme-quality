@@ -26,7 +26,7 @@ try {
       (await import('../lib/zip.mjs')).gscan();
       break;
     case 'zip':
-      (await import('../lib/zip.mjs')).zip({ build: !flag('--no-build') });
+      (await import('../lib/zip.mjs')).zip({ build: !flag('--no-build'), demo: flag('--demo') });
       break;
     case 'stamp': {
       const stamped = (await import('../lib/stamp.mjs')).stamp();
