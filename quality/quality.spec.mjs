@@ -37,8 +37,10 @@ for (const { name, path, status = 200 } of pages) {
 test('menus', async ({ page, isMobile }, info) => {
   const { colorSchemeToggle, menuToggle, menu, dropdownToggle } = quality.interactions;
   const skipped = [];
-  // The first visible match: a theme can have one toggle for wide screens and another in the menu
+  // The first visible match: a theme can have one toggle for wide screens and another in the menu.
+  // pin() keeps pointing at that element once it's hidden again (after Escape closes its menu).
   const visible = (selector) => page.locator(selector).locator('visible=true').first();
+  const pin = async (locator, name) => { await locator.evaluate((el, n) => el.setAttribute('data-tt-pin', n), name); return page.locator(`[data-tt-pin="${name}"]`); };
   const present = async (selector, label) => {
     if (selector && await visible(selector).count()) return true;
     skipped.push(label);
@@ -66,7 +68,7 @@ test('menus', async ({ page, isMobile }, info) => {
   const dropdown = dropdownToggle?.[isMobile ? 'mobile' : 'desktop'];
   let toggle;
   if (await present(dropdown, 'dropdown')) {
-    toggle = visible(dropdown);
+    toggle = await pin(visible(dropdown), 'dropdown');
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   }

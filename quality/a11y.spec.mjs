@@ -104,9 +104,11 @@ test('keyboard: menus', async ({ page, isMobile }, info) => {
   const focusedIs = (selector) => page.evaluate((s) => document.activeElement === document.querySelector(s) || document.activeElement?.matches(s), selector);
 
   if (isMobile) {
-    const toggle = menuToggle && page.locator(menuToggle).locator('visible=true').first();
-    if (!toggle || !(await toggle.count())) skipped.push('menu toggle');
+    const first = menuToggle && page.locator(menuToggle).locator('visible=true').first();
+    if (!first || !(await first.count())) skipped.push('menu toggle');
     else {
+      await first.evaluate((el) => el.setAttribute('data-tt-pin', 'menu-toggle'));
+      const toggle = page.locator('[data-tt-pin="menu-toggle"]');
       await toggle.focus();
       await page.keyboard.press('Enter');
       if (menu && !(await page.locator(menu).isVisible())) issues.push('Enter on the menu button doesn\'t open the menu');
@@ -121,9 +123,11 @@ test('keyboard: menus', async ({ page, isMobile }, info) => {
     }
   } else {
     const selector = dropdownToggle?.desktop;
-    const toggle = selector && page.locator(selector).locator('visible=true').first();
-    if (!toggle || !(await toggle.count())) skipped.push('dropdown');
+    const first = selector && page.locator(selector).locator('visible=true').first();
+    if (!first || !(await first.count())) skipped.push('dropdown');
     else {
+      await first.evaluate((el) => el.setAttribute('data-tt-pin', 'dropdown'));
+      const toggle = page.locator('[data-tt-pin="dropdown"]');
       await toggle.focus();
       await page.keyboard.press('Enter');
       if ((await toggle.getAttribute('aria-expanded')) !== 'true') issues.push('Enter on the dropdown button doesn\'t open it');
