@@ -92,7 +92,7 @@ The workflows run only what a change needs, since every repository's minutes cou
 | Command | What it does |
 |---|---|
 | `theme-tools test` | gscan, Ghost's theme validator |
-| `theme-tools zip [--no-build]` | `npm run build`, gscan, then `dist/<name>.zip` |
+| `theme-tools zip [--no-build] [--demo]` | `npm run build`, gscan, then `dist/<name>.zip`; `--demo` makes `dist/demo/<name>.zip` for the demo site, with the templates in `demo/` its routes use (the deploy workflow uploads that one) |
 | `theme-tools stamp` | writes `<meta name="ghost-theme" content="Name 1.2.0">` into `default.hbs` |
 | `theme-tools setup [--with-deps]` | installs the quality checks' dependencies and Chromium (`--with-deps`: its system libraries too, for CI) |
 | `theme-tools quality [--no-zip]` | the quality checks (below) |

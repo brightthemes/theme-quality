@@ -12,7 +12,9 @@ for (const { name, path, status = 200 } of pages) {
     expect(response.status(), `${path} status`).toBe(status);
 
     // The dev server adds its own script, and its console has dev messages: no HTML or console checks there
-    const report = quick ? { results: [] } : await htmlValidate.validateString(await response.text());
+    // A page can redirect from a script (a members page while signed out): its HTML is then read again
+    const html = quick ? '' : await response.text().catch(() => page.request.get(path).then((r) => r.text()));
+    const report = quick ? { results: [] } : await htmlValidate.validateString(html);
     const findings = {
       path,
       consoleErrors: quick ? [] : consoleErrors.filter((e) => !(status !== 200 && e.includes(`status of ${status}`))),
@@ -35,8 +37,12 @@ for (const { name, path, status = 200 } of pages) {
 test('menus', async ({ page, isMobile }, info) => {
   const { colorSchemeToggle, menuToggle, menu, dropdownToggle } = quality.interactions;
   const skipped = [];
+  // The first visible match: a theme can have one toggle for wide screens and another in the menu.
+  // pin() keeps pointing at that element once it's hidden again (after Escape closes its menu).
+  const visible = (selector) => page.locator(selector).locator('visible=true').first();
+  const pin = async (locator, name) => { await locator.evaluate((el, n) => el.setAttribute('data-tt-pin', n), name); return page.locator(`[data-tt-pin="${name}"]`); };
   const present = async (selector, label) => {
-    if (selector && await page.locator(selector).first().count()) return true;
+    if (selector && await visible(selector).count()) return true;
     skipped.push(label);
     return false;
   };
@@ -44,23 +50,25 @@ test('menus', async ({ page, isMobile }, info) => {
 
   if (await present(colorSchemeToggle, 'color scheme toggle') && scheme && !scheme.class) {
     const html = page.locator('html');
+    // Each press changes the scheme (from "system" the first press can go to either light or dark)
     const before = await html.getAttribute(scheme.attribute);
-    const toggle = page.locator(colorSchemeToggle).first();
+    const toggle = visible(colorSchemeToggle);
     await toggle.click();
     await expect(html).not.toHaveAttribute(scheme.attribute, before);
+    const after = await html.getAttribute(scheme.attribute);
     await toggle.click();
-    await expect(html).toHaveAttribute(scheme.attribute, before);
+    await expect(html).not.toHaveAttribute(scheme.attribute, after);
   }
 
   if (isMobile && await present(menuToggle, 'menu toggle')) {
-    await page.locator(menuToggle).first().click();
+    await visible(menuToggle).click();
     if (menu) await expect(page.locator(menu)).toBeVisible();
   }
 
   const dropdown = dropdownToggle?.[isMobile ? 'mobile' : 'desktop'];
   let toggle;
   if (await present(dropdown, 'dropdown')) {
-    toggle = page.locator(dropdown).first();
+    toggle = await pin(visible(dropdown), 'dropdown');
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   }
