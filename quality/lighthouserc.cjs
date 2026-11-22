@@ -14,7 +14,8 @@ module.exports = {
   ci: {
     collect: {
       url: [].concat(pages).filter((p) => names.includes(p.name)).map((p) => new URL(p.path, process.env.BASE_URL).href),
-      numberOfRuns: 3,
+      // Performance only warns: one run on CI (minutes count there), the median of three locally
+      numberOfRuns: own.lighthouseRuns || (process.env.CI ? 1 : 3),
       chromePath: process.env.CHROME_PATH || undefined,
       settings: {
         chromeFlags: '--headless=new --no-sandbox',

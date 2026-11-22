@@ -1,8 +1,8 @@
 import { execSync, spawn } from 'child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { results, root, themePackage } from '../lib/config.mjs';
 import { zip, zipPath } from '../lib/zip.mjs';
 import { demoFile } from './pages.mjs';
@@ -81,7 +81,7 @@ async function setup(theme, options) {
   };
   const upload = async (method, path, field, file, type) => {
     const form = new FormData();
-    form.append(field, new Blob([readFileSync(file)], { type }), field === 'routes' ? 'routes.yaml' : 'content.json');
+    form.append(field, new Blob([file.content ?? readFileSync(file)], { type }), field === 'routes' ? 'routes.yaml' : 'content.json');
     delete headers['Content-Type'];
     try { await call(method, path, form); } finally { headers['Content-Type'] = 'application/json'; }
   };
@@ -95,8 +95,9 @@ async function setup(theme, options) {
   await call('PUT', `/themes/${theme}/activate/`);
   // Remove Ghost's starter posts and pages so only the demo content is there
   await call('DELETE', '/db/');
+  const content = await localImages(call, headers, readFileSync(demoFile, 'utf8'));
   log('importing demo/content.json');
-  await upload('POST', '/db/', 'importfile', demoFile, 'application/json');
+  await upload('POST', '/db/', 'importfile', { content }, 'application/json');
 
   const routes = join(root, 'routes.yaml');
   if (options.routes && existsSync(routes)) {
@@ -119,8 +120,13 @@ async function setup(theme, options) {
 
   // Navigation isn't part of a content import. The default has a dropdown ("-" items), as Skeleton builds them.
   const navigation = options.navigation || await defaultNavigation(path, urls);
+  // Ghost's default cover image is on static.ghost.org, which Ghost can't resize
+  const settings = (await (await call('GET', '/settings/')).json()).settings;
+  const cover = settings.find((s) => s.key === 'cover_image')?.value;
+  const localCover = cover && (await uploadImages(call, headers, [cover])).get(cover);
   await call('PUT', '/settings/', { settings: [
     { key: 'navigation', value: JSON.stringify(navigation) },
+    ...(localCover ? [{ key: 'cover_image', value: localCover }] : []),
     // Ghost's default accent (pink) fails contrast with any text color
     ...(options.accentColor ? [{ key: 'accent_color', value: options.accentColor }] : [])
   ] });
@@ -181,4 +187,49 @@ async function defaultNavigation(path, urls) {
   for (const user of (data.users || []).slice(0, 2)) await link('author', user, '-');
   await link('tag', tag);
   return items;
+}
+
+// The demo's images are on other hosts (picsum.photos), which Ghost doesn't resize, so Lighthouse
+// would measure full-size images no real site serves. They're uploaded to the test Ghost instead,
+// as a publisher's would be, and cached between runs. Unsplash stays: Ghost resizes it by URL.
+const externalImage = /https?:\/\/(?:[a-z0-9-]+\.)*(?:picsum\.photos\/[^"\\\s)]+|(?!(?:images\.)?unsplash\.com)[a-z0-9.-]+\/[^"\\\s)]+\.(?:jpe?g|png|webp|gif|avif))/gi;
+
+async function localImages(call, headers, json) {
+  const found = [...new Set(json.match(externalImage) || [])].filter((u) => !u.startsWith(url));
+  if (!found.length) return json;
+  const local = await uploadImages(call, headers, found);
+  for (const [from, to] of local) json = json.split(from).join(to);
+  log(`demo images: ${local.size} of ${found.length} uploaded`);
+  return json;
+}
+
+async function uploadImages(call, headers, urls) {
+  const cache = join(ghostDir, 'images');
+  mkdirSync(cache, { recursive: true });
+  const local = new Map();
+  const one = async (src) => {
+    if (src.startsWith(url) || /unsplash\.com/.test(src)) return;
+    const name = createHash('sha1').update(src).digest('hex').slice(0, 16);
+    let file = readdirSync(cache).find((f) => f.startsWith(name + '.'));
+    if (!file) {
+      const res = await fetch(src).catch(() => null);
+      if (!res?.ok) return log(`couldn't download ${src}, it stays external`);
+      const type = res.headers.get('content-type') || 'image/jpeg';
+      file = `${name}.${type.split('/')[1].split(/[;+]/)[0].replace('jpeg', 'jpg')}`;
+      writeFileSync(join(cache, file), Buffer.from(await res.arrayBuffer()));
+    }
+    const form = new FormData();
+    const ext = file.split('.').pop();
+    form.append('file', new Blob([readFileSync(join(cache, file))], { type: `image/${ext === 'jpg' ? 'jpeg' : ext}` }), file);
+    form.append('purpose', 'image');
+    const type = headers['Content-Type'];
+    delete headers['Content-Type'];
+    try {
+      const res = await call('POST', '/images/upload/', form, 2);
+      local.set(src, (await res.json()).images[0].url);
+    } catch { log(`couldn't upload ${src}, it stays external`); }
+    finally { headers['Content-Type'] = type; }
+  };
+  for (let i = 0; i < urls.length; i += 6) await Promise.all(urls.slice(i, i + 6).map(one));
+  return local;
 }
