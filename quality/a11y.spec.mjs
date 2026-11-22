@@ -104,9 +104,9 @@ test('keyboard: menus', async ({ page, isMobile }, info) => {
   const focusedIs = (selector) => page.evaluate((s) => document.activeElement === document.querySelector(s) || document.activeElement?.matches(s), selector);
 
   if (isMobile) {
-    if (!menuToggle || !(await page.locator(menuToggle).count())) skipped.push('menu toggle');
+    const toggle = menuToggle && page.locator(menuToggle).locator('visible=true').first();
+    if (!toggle || !(await toggle.count())) skipped.push('menu toggle');
     else {
-      const toggle = page.locator(menuToggle).first();
       await toggle.focus();
       await page.keyboard.press('Enter');
       if (menu && !(await page.locator(menu).isVisible())) issues.push('Enter on the menu button doesn\'t open the menu');
@@ -121,9 +121,9 @@ test('keyboard: menus', async ({ page, isMobile }, info) => {
     }
   } else {
     const selector = dropdownToggle?.desktop;
-    if (!selector || !(await page.locator(selector).count())) skipped.push('dropdown');
+    const toggle = selector && page.locator(selector).locator('visible=true').first();
+    if (!toggle || !(await toggle.count())) skipped.push('dropdown');
     else {
-      const toggle = page.locator(selector).first();
       await toggle.focus();
       await page.keyboard.press('Enter');
       if ((await toggle.getAttribute('aria-expanded')) !== 'true') issues.push('Enter on the dropdown button doesn\'t open it');
