@@ -58,6 +58,9 @@ jobs:
       # moves to a theme-tools with it in zip
       - name: Scripts the templates load
         run: npx --yes --package=github:brightthemes/theme-tools#main theme-tools scripts
+      # The templates, pages and routes standard, from main for the same reason
+      - name: Templates, pages and routes
+        run: npx --yes --package=github:brightthemes/theme-tools#main theme-tools structure
 
   # Not on drafts (it runs when the pull request is marked ready, with "ready_for_review" in the
   # caller's pull_request types), not when CI fails, and not for docs or workflow changes alone

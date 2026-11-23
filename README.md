@@ -92,8 +92,9 @@ The workflows run only what a change needs, since every repository's minutes cou
 | Command | What it does |
 |---|---|
 | `theme-tools test` | gscan, Ghost's theme validator |
-| `theme-tools zip [--no-build] [--demo]` | `npm run build`, gscan, the scripts check, then `dist/<name>.zip`; `--demo` makes `dist/demo/<name>.zip` for the demo site, with the templates in `demo/` its routes use (the deploy workflow uploads that one) |
+| `theme-tools zip [--no-build] [--demo]` | `npm run build`, gscan, the scripts and structure checks, then `dist/<name>.zip`; `--demo` makes `dist/demo/<name>.zip` for the demo site, with the templates in `demo/` its routes use (the deploy workflow uploads that one) |
 | `theme-tools scripts` | the scripts check (below) on its own |
+| `theme-tools structure` | the templates, pages and routes check (below) on its own |
 | `theme-tools stamp` | writes `<meta name="ghost-theme" content="Name 1.2.0">` into `default.hbs` |
 | `theme-tools setup [--with-deps]` | installs the quality checks' dependencies and Chromium (`--with-deps`: its system libraries too, for CI) |
 | `theme-tools quality [--no-zip]` | the quality checks (below) |
@@ -108,6 +109,28 @@ A template that loads a built script with a plain `<script src="{{asset "built/s
 - each of those files must exist, and compile as a classic script (Node's `vm.Script`): no `import` or `export` statement, while a dynamic `import()` is fine
 
 It fails with the template, the file and the reason. `zip` runs it after the build, so CI, releases and deploys do too; CI also runs it from theme-tools' `main`, so every theme gets it before its lockfile moves.
+
+### structure
+
+Every theme follows one standard for templates, pages and routes (Skeleton's `DEVELOPMENT.md`, "Templates, pages and routes"). This check reads the theme's files and fails on:
+
+- **routes.yaml:** a missing file; the short form (`/signup/: members/signup`); a route for a single page (anything under `routes:` that isn't a paginated channel, `controller: channel`, a feed, `content_type`, or a static home on `/` with no collection there), which should be a page with a `custom-template-*` template; a `/` route next to a collection on `/`; a template in a folder; a template that doesn't exist
+- **templates at the root:** anything other than Ghost's own (`default`, `index`, `home`, `post`, `page`, `tag`, `author`, `error`, `error-404`…), `custom-post-<name>` (posts), `custom-template-<name>` (pages) and the templates routes.yaml uses; slug templates (`page-<slug>`, `post-<slug>`, `tag-<slug>`); demo templates; `private.hbs` (the zip leaves it out)
+- **templates in folders** other than `partials/` and `demo/` (`members/`)
+- **demo files** outside `demo/`, and demo routes not named `demo/routes-demo.yaml` (its templates must exist)
+- **pages read by slug** (`{{#get "pages" filter="slug:…"}}`, literal slugs) not named `home-<name>` (home page sections) or `section-<name>` (everything else)
+
+A sold theme keeps its older names, since posts store their template's name and buyers' `routes.yaml` and pages use the old ones. Each is listed in `theme-tools.json` under `structure.allow`, with a reason; `*` matches any characters:
+
+```json
+{ "structure": { "allow": [
+  { "path": "custom-with-*.hbs", "reason": "Post templates sold under these names: posts store the template name" },
+  { "path": "/signup/", "reason": "Buyers' routes.yaml points here: moves to custom-template-signup at the next major release" },
+  { "path": "slug:cta", "reason": "Buyers' pages have this slug" }
+] } }
+```
+
+The path is the template file, the route (`/signup/`), the folder (`members/`), `routes.yaml /signup/` for the short form, `demo …` for a demo route, or `slug:<slug>`. An entry that no longer matches anything is reported, so the list shrinks as a theme moves to the standard. `zip` runs the check, and CI runs it from `main`, like the scripts check.
 
 ### quality
 
@@ -153,6 +176,7 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
 ```json
 {
   "zip": { "exclude": [] },
+  "structure": { "allow": [] },
   "release": { "quality": true, "stamp": true },
   "quality": {
     "enforce": true,
@@ -189,6 +213,7 @@ Optional, in the theme's root. Every key is optional; these are the defaults:
 ```
 
 - **`zip.exclude`**: more `zip -x` patterns, added to the built-in ones (`dist*`, `demo*`, `node_modules*`, dotfiles, `TODO.md`, `private.hbs`, `theme.js`, `scripts*`, `prototypes*`, `tests*`, `quality-results*`, `DEVELOPMENT.md`, `CLAUDE.md`, `theme-tools.json`). `AGENTS.md` ships on purpose: it tells buyers' AI assistants how the theme works, so internal notes (setup steps, the brief, release notes) belong in `DEVELOPMENT.md`.
+- **`structure.allow`**: older template, route and slug names a sold theme keeps, each `{ "path", "reason" }` (see [structure](#structure)).
 - **`quality.enforce`**: `false` reports findings without failing on them (only the smoke checks fail), for a first run on an older theme.
 - **`quality.report`**: `true` reports everything, smoke checks and Lighthouse included, and the run always passes. For a theme moving to theme-tools: its CI shows the findings without blocking pull requests, until the fixes land and it's turned off. On GitHub Actions the summary also goes on the run's page.
 - **`quality.pages`**: replaces the picked pages; `extraPages` adds to them. Each is `{ "name": "…", "path": "/…/" }`, with `"status": 404` for an expected error.
