@@ -82,7 +82,7 @@ jobs:
 
 The workflows run only what a change needs, since every repository's minutes count:
 
-- **CI** (build, gscan, zip: about a minute) runs on every pull request push; a newer push cancels the run before it.
+- **CI** (build, gscan, the scripts check, zip: about a minute) runs on every pull request push; a newer push cancels the run before it.
 - **Quality** (about five minutes) runs after CI passes, and not on drafts (mark the pull request ready to run it), nor when a pull request only changes docs (`*.md`, `LICENSE`) or `.github/`. On CI, Lighthouse runs once per page (`quality.lighthouseRuns` to change it), locally three times.
 - **Release** checks only commits whose message starts with `v`; **Deploy** skips pushes that only change docs, `.github/`, `demo/` or `theme-tools.json`.
 - **Dependabot** runs monthly (`interval: monthly` in `.github/dependabot.yml`), with minor and patch updates grouped into one pull request; security updates still come when they're published.
@@ -92,12 +92,22 @@ The workflows run only what a change needs, since every repository's minutes cou
 | Command | What it does |
 |---|---|
 | `theme-tools test` | gscan, Ghost's theme validator |
-| `theme-tools zip [--no-build] [--demo]` | `npm run build`, gscan, then `dist/<name>.zip`; `--demo` makes `dist/demo/<name>.zip` for the demo site, with the templates in `demo/` its routes use (the deploy workflow uploads that one) |
+| `theme-tools zip [--no-build] [--demo]` | `npm run build`, gscan, the scripts check, then `dist/<name>.zip`; `--demo` makes `dist/demo/<name>.zip` for the demo site, with the templates in `demo/` its routes use (the deploy workflow uploads that one) |
+| `theme-tools scripts` | the scripts check (below) on its own |
 | `theme-tools stamp` | writes `<meta name="ghost-theme" content="Name 1.2.0">` into `default.hbs` |
 | `theme-tools setup [--with-deps]` | installs the quality checks' dependencies and Chromium (`--with-deps`: its system libraries too, for CI) |
 | `theme-tools quality [--no-zip]` | the quality checks (below) |
 | `theme-tools a11y` | the accessibility and smoke checks only, in under a minute, against `npm run dev` (or `BASE_URL`); no build, HTML validation, Lighthouse or budget |
 | `theme-tools release [minor\|patch\|major] [--no-quality] [--no-push]` | the release (below) |
+
+### scripts
+
+A template that loads a built script with a plain `<script src="{{asset "built/swiper.js"}}">`, without `type="module"`, gets a classic script: an `import` or `export` statement in it is a syntax error in the browser, and nothing in the file runs. A bundler adds one when entries share a chunk (Vite's `output.keepNames` with a second entry imports `rolldown-runtime.js`). The quality checks only see it on pages that render that script, so this check reads the templates instead:
+
+- every `.hbs` file in the theme (templates, partials, `demo/`), for `<script>` tags that load a theme file (`{{asset "…js"}}` or `/assets/…js`) without `type="module"`
+- each of those files must exist, and compile as a classic script (Node's `vm.Script`): no `import` or `export` statement, while a dynamic `import()` is fine
+
+It fails with the template, the file and the reason. `zip` runs it after the build, so CI, releases and deploys do too; CI also runs it from theme-tools' `main`, so every theme gets it before its lockfile moves.
 
 ### quality
 
