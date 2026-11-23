@@ -5,7 +5,7 @@ import { join } from 'path';
 import { createHash, randomBytes } from 'crypto';
 import { results, root, themePackage } from '../lib/config.mjs';
 import { zip, zipPath } from '../lib/zip.mjs';
-import { demoFile } from './pages.mjs';
+import { demoFile, loadDemo } from './pages.mjs';
 
 const port = Number(process.env.GHOST_PORT || 2369);
 const url = `http://localhost:${port}`;
@@ -98,6 +98,7 @@ async function setup(theme, options) {
   const content = await localImages(call, headers, readFileSync(demoFile, 'utf8'));
   log('importing demo/content.json');
   await upload('POST', '/db/', 'importfile', { content }, 'application/json');
+  await waitForImport(call);
 
   const routes = join(root, 'routes.yaml');
   if (options.routes && existsSync(routes)) {
@@ -170,6 +171,26 @@ async function setupMember(call) {
     email: member.email, name: member.name, signinUrl, newsletters: newsletters.length, fields
   }, null, 2));
   log(`member ${member.email}: ${newsletters.length} newsletters, ${fields.length} custom fields`);
+}
+
+// Ghost 6.78+ runs a content import as a background job: the request returns once the job is
+// queued. Wait until every post and page of demo/content.json is in, so nothing that follows
+// (routes, the navigation's page lookups, the checks) races the import.
+async function waitForImport(call, seconds = 180) {
+  const data = loadDemo();
+  const expected = { posts: 0, pages: 0 };
+  for (const p of data?.posts || []) expected[p.type === 'page' ? 'pages' : 'posts']++;
+  const total = async (resource) => (await (await call('GET', `/${resource}/?limit=1&fields=id`, null, 0)).json()).meta.pagination.total;
+  let found = {};
+  for (let i = 0; i < seconds; i++) {
+    found = { posts: await total('posts'), pages: await total('pages') };
+    if (found.posts >= expected.posts && found.pages >= expected.pages) {
+      if (i) log(`import finished after ${i}s`);
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error(`demo/content.json didn't finish importing in ${seconds}s: ${found.posts} of ${expected.posts} posts, ${found.pages} of ${expected.pages} pages`);
 }
 
 async function defaultNavigation(path, urls) {
