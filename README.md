@@ -167,7 +167,7 @@ Environment variables: `BASE_URL` tests a running Ghost instead (it must have th
 
 ### release
 
-Needs a clean working tree. Bumps the version (minor by default), stamps `default.hbs`, zips, runs `quality` (unless `--no-quality` or `"release": { "quality": false }`), then commits `package.json`, `package-lock.json` and `default.hbs` as `vX.Y.Z` and pushes. If anything fails, the version bump is undone. The theme's release workflow publishes the GitHub release from that commit.
+Needs a clean working tree. Bumps the version (minor by default), stamps `default.hbs`, zips, runs `quality` (unless `--no-quality` or `"release": { "quality": false }`), then commits `package.json`, `package-lock.json` and `default.hbs` as `vX.Y.Z` and pushes. If anything fails, the version bump is undone. The theme's release workflow publishes the GitHub release from that commit. Then update the site: the release ends by printing the step (and the release workflow puts it on its run's summary): run **Theme release** in brightthemes-astro (Actions › Theme release › Run workflow, with the slug and version), or `npm run theme:release -- <slug> <version> --repo <checkout>` there, and merge the pull request it opens. The theme repos don't send it by themselves: the organization is on GitHub Free, so they can't share an organization secret (`SITE_DISPATCH_TOKEN`).
 
 ## theme-tools.json
 
