@@ -107,3 +107,13 @@ jobs:
           files: dist/${{ env.NAME }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # The site isn't told by itself (no SITE_DISPATCH_TOKEN on GitHub Free): the next step is shown on the run's summary
+      - name: Next step, update the site
+        run: |
+          {
+            echo "### v$VERSION is published. Next: update brightthemes.com"
+            echo ""
+            echo "In **brightthemes-astro**: Actions › Theme release › Run workflow, slug \`$NAME\`, version \`$VERSION\`"
+            echo "(or \`npm run theme:release -- $NAME $VERSION --repo <checkout>\`), then merge the pull request it opens."
+          } >> "$GITHUB_STEP_SUMMARY"
