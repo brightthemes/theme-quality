@@ -8,6 +8,8 @@ const help = `theme-tools: dev tooling for Bright Themes' Ghost themes (run in a
   theme-tools scripts                   check that the built scripts the templates load without
                                         type="module" exist and have no import or export (zip runs it)
   theme-tools structure                 check templates, pages and routes against the standard (zip runs it)
+  theme-tools demo                      set up the demo site after a deploy: upload demo/routes-demo.yaml and
+                                        run demo/pages.mjs (GHOST_URL, ADMIN_API_KEY: the site's integration)
   theme-tools stamp                     write the version into default.hbs (<meta name="ghost-theme">)
   theme-tools setup [--with-deps]       install the quality checks' dependencies and Chromium
                                         (--with-deps: Chromium's system libraries too, for CI)
@@ -36,6 +38,9 @@ try {
       break;
     case 'structure':
       (await import('../lib/structure.mjs')).structure();
+      break;
+    case 'demo':
+      await (await import('../lib/demo.mjs')).demo();
       break;
     case 'stamp': {
       const stamped = (await import('../lib/stamp.mjs')).stamp();
