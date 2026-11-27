@@ -1,6 +1,8 @@
 # Reusable: zips the theme like a release and uploads it to the theme's demo site. A theme
 # calls it from its .github/workflows/deploy.yml on push to main, with `secrets: inherit`
-# (GHOST_ADMIN_API_URL and GHOST_ADMIN_API_KEY in the theme repo's secrets).
+# (GHOST_ADMIN_API_URL and GHOST_ADMIN_API_KEY in the theme repo's secrets). Then it sets up the demo
+# site: demo/pages.mjs, and demo/routes-demo.yaml when GHOST_STAFF_EMAIL and GHOST_STAFF_PASSWORD are
+# set too (Ghost takes routes only from a staff user). See `theme-tools demo` in the README.
 name: Theme deploy
 on:
   workflow_call:
@@ -13,6 +15,10 @@ on:
         required: true
       GHOST_ADMIN_API_KEY:
         required: true
+      GHOST_STAFF_EMAIL:
+        required: false
+      GHOST_STAFF_PASSWORD:
+        required: false
 
 permissions:
   contents: read
@@ -40,3 +46,11 @@ jobs:
           api-url: ${{ secrets.GHOST_ADMIN_API_URL }}
           api-key: ${{ secrets.GHOST_ADMIN_API_KEY }}
           file: dist/demo/${{ env.NAME }}.zip
+
+      - name: Set up the demo pages and routes
+        run: npx --yes --package=github:brightthemes/theme-tools#main theme-tools demo
+        env:
+          GHOST_URL: ${{ secrets.GHOST_ADMIN_API_URL }}
+          ADMIN_API_KEY: ${{ secrets.GHOST_ADMIN_API_KEY }}
+          GHOST_EMAIL: ${{ secrets.GHOST_STAFF_EMAIL }}
+          GHOST_PASSWORD: ${{ secrets.GHOST_STAFF_PASSWORD }}
